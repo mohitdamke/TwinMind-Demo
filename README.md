@@ -1,6 +1,7 @@
 TwinMind – AI-Powered Voice Notes App
 
 <img width="240" height="240" alt="TwinMind" src="https://github.com/user-attachments/assets/ce06cce1-818a-40f7-b3ef-73ae272a3617" />
+
 https://github.com/user-attachments/assets/e24327b7-eaaa-4d97-8a75-e6de0e52df07
 
 TwinMind is an Android application that records your meetings or voice notes and automatically generates transcriptions and summaries using AI. It helps you focus on discussions while keeping organized notes for later review.
