@@ -19,3 +19,17 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep your service
+-keep class mohit.voice.twinmind.RecordService { *; }
+
+# Keep Hilt-injected ViewModels
+-keep class mohit.voice.twinmind.viewmodel.NotesProcessViewModel { *; }
+-keep class mohit.voice.twinmind.viewmodel.notes.** { *; }
+
+# Keep Room entities & DAOs
+-keep class mohit.voice.twinmind.room.entity.** { *; }
+-keep class mohit.voice.twinmind.room.dao.** { *; }
+
+# Gemini
+-keep class mohit.voice.twinmind.gemini.** { *; }

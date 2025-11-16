@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import mohit.voice.twinmind.room.dao.MeetingDao
@@ -42,7 +43,12 @@ class NotesProcessViewModel @Inject constructor(
         object Completed : NotesState()
         data class Error(val message: String) : NotesState()
     }
-    var currentRecordingId by mutableLongStateOf(0L) // <-- active recording
+    private val _currentRecordingId = MutableStateFlow(0L)
+    val currentRecordingId: StateFlow<Long> = _currentRecordingId.asStateFlow()
+
+    fun updateCurrentRecordingId(id: Long) {
+        _currentRecordingId.value = id
+    }
 
     fun getTranscriptFlow(meetingId: Long) = transcriptDao.getTranscriptFlow(meetingId)
     fun getSummaryFlow(meetingId: Long) = summaryDao.getSummaryFlow(meetingId)
@@ -133,4 +139,41 @@ class NotesProcessViewModel @Inject constructor(
             }
         }
     }
+    fun processRecording(meetingId: Long, audioPath: String) {
+        viewModelScope.launch {
+            try {
+                _state.value = NotesState.ConvertingToText
+
+                // Convert audio to text (direct suspend call)
+                val transcriptText = speechToTextManager.convertAudioToText(audioPath)
+                val transcript = TranscriptEntity(
+                    meetingId = meetingId,
+                    transcriptText = transcriptText,
+                    createdAt = System.currentTimeMillis()
+                )
+                transcriptDao.insertTranscript(transcript)
+                Log.d(TAG, "Transcript saved for meetingId=$meetingId")
+
+                _state.value = NotesState.GeneratingSummary
+
+                // Generate summary (direct suspend call)
+                val summaryText = geminiApi.generateSummary(transcriptText)
+                val summary = SummaryEntity(
+                    meetingId = meetingId,
+                    summaryText = summaryText,
+                    createdAt = System.currentTimeMillis()
+                )
+                summaryDao.insertSummary(summary)
+                Log.d(TAG, "Summary saved for meetingId=$meetingId")
+
+                _state.value = NotesState.Completed
+                Log.d(TAG, "Processing completed for meetingId=$meetingId")
+
+            } catch (e: Exception) {
+                Log.e(TAG, "Error processing recording", e)
+                _state.value = NotesState.Error(e.message ?: "Error processing recording")
+            }
+        }
+    }
+
 }

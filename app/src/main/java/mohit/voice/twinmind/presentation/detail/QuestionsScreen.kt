@@ -75,11 +75,3 @@ fun QuestionsScreen(modifier: Modifier = Modifier, navController: NavController)
         )
     }
 }
-
-
-@Preview(showBackground = true)
-@Composable
-fun QuestionScreenPreview() {
-    val navController = rememberNavController()   // fake nav controller only for preview
-    QuestionsScreen(navController = navController)
-}

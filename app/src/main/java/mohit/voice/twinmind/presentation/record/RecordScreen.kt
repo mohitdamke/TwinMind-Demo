@@ -1,12 +1,12 @@
 package mohit.voice.twinmind.presentation.record
 
 import android.Manifest
-import android.R.id.tabs
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -55,12 +55,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.launch
 import mohit.voice.twinmind.presentation.detail.NotesScreen
 import mohit.voice.twinmind.presentation.detail.QuestionsScreen
@@ -85,13 +83,14 @@ fun RecordScreen(
     val scope = rememberCoroutineScope()
     val context = navController.context
 
+// Recording states
     var isRecording by remember { mutableStateOf(false) }
     var timerText by remember { mutableStateOf("00:00") }
     var mediaRecorder: MediaRecorder? by remember { mutableStateOf(null) }
     var audioFilePath by remember { mutableStateOf("") }
     var startTime by remember { mutableLongStateOf(0L) }
 
-    // Permissions
+// Permissions
     val recordPermission = Manifest.permission.RECORD_AUDIO
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -107,28 +106,34 @@ fun RecordScreen(
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
-    LaunchedEffect(Unit) { if (!isPermissionGranted) permissionLauncher.launch(recordPermission) }
-
-// Reset for new recording
-    // Right after reading currentRecordingId
-    val currentRecordingId by notesViewModel::currentRecordingId
-    Log.d("RECORD_SCREEN", "Screen started. currentMeetingId=$currentMeetingId, currentRecordingId=$currentRecordingId")
-
-// Reset for new recording
-    LaunchedEffect(currentMeetingId) {
-        if (currentMeetingId == 0L) {
-            Log.d("RECORD_SCREEN", "New recording detected. Resetting currentRecordingId to 0L")
-            notesViewModel.currentRecordingId = 0L
-        } else {
-            val meeting = meetingDao.getMeetingById(currentMeetingId)
-            Log.d("RECORD_SCREEN", "Existing recording. Loaded meetingId=${meeting?.id}")
-            notesViewModel.currentRecordingId = meeting?.id ?: 0L
-        }
+    LaunchedEffect(Unit) {
+        if (!isPermissionGranted) permissionLauncher.launch(recordPermission)
     }
 
+// --- Reactive currentRecordingId ---
+    // Observe currentRecordingId from ViewModel
+    val currentRecordingId by notesViewModel.currentRecordingId.collectAsState()
+
+// Only enable button after loading
+    val isNewRecording = currentRecordingId == 0L
 
 
-    // Timer
+// --- Load or reset recording id based on currentMeetingId ---
+    LaunchedEffect(currentMeetingId) {
+        val id = if (currentMeetingId == 0L) {
+            0L
+        } else {
+            val meeting = meetingDao.getMeetingById(currentMeetingId)
+            meeting?.id ?: 0L
+        }
+        notesViewModel.updateCurrentRecordingId(id)
+    }
+    Log.d(
+        "RECORD_SCREEN",
+        "Screen started. currentMeetingId=$currentMeetingId, currentRecordingId=$currentRecordingId"
+    )
+
+// --- Timer ---
     LaunchedEffect(isRecording) {
         if (isRecording) {
             startTime = System.currentTimeMillis()
@@ -141,66 +146,76 @@ fun RecordScreen(
             }
         }
     }
-    // Load saved meeting duration if viewing an existing recording
-    LaunchedEffect(currentMeetingId) {
-        if (currentMeetingId > 0L) {
-            val meeting = meetingDao.getMeetingById(currentMeetingId)
+
+// --- Load saved meeting duration if viewing an existing recording ---
+    LaunchedEffect(currentRecordingId) {
+        if (currentRecordingId > 0L) {
+            val meeting = meetingDao.getMeetingById(currentRecordingId)
             timerText = meeting?.duration ?: "00:00"
         }
     }
 
-    // State
+// --- Notes and transcript state ---
     val viewState by notesViewModel.state.collectAsState()
 
-    // State holders
     var transcriptText by remember { mutableStateOf("") }
     var summaryText by remember { mutableStateOf("") }
 
-// Get flows from DAO
-    val transcriptFlow = if (currentMeetingId > 0L) {
-        notesViewModel.transcriptDao.getTranscriptFlow(currentMeetingId)
+    val transcriptFlow = if (currentRecordingId > 0L) {
+        notesViewModel.transcriptDao.getTranscriptFlow(currentRecordingId)
     } else {
-        notesViewModel.getTranscriptFlow(currentMeetingId)
+        notesViewModel.getTranscriptFlow(currentRecordingId)
     }
 
-    val summaryFlow = if (currentMeetingId > 0L) {
-        notesViewModel.summaryDao.getSummaryFlow(currentMeetingId)
+    val summaryFlow = if (currentRecordingId > 0L) {
+        notesViewModel.summaryDao.getSummaryFlow(currentRecordingId)
     } else {
-        notesViewModel.getSummaryFlow(currentMeetingId)
+        notesViewModel.getSummaryFlow(currentRecordingId)
     }
 
-// Collect flows as state
     val transcriptEntity by transcriptFlow.collectAsState(initial = null)
     val summaryEntity by summaryFlow.collectAsState(initial = null)
 
-// Update local states
     LaunchedEffect(transcriptEntity, summaryEntity) {
         transcriptText = transcriptEntity?.transcriptText ?: ""
         summaryText = summaryEntity?.summaryText ?: ""
     }
 
-
+// --- Meeting info ---
     var meetingTitle by remember { mutableStateOf("") }
     var meetingDate by remember { mutableStateOf("") }
 
-    // ✅ Load meeting info if editing/viewing existing recording
-    LaunchedEffect(currentMeetingId) {
-        if (currentMeetingId > 0L) {
-            val meeting = meetingDao.getMeetingById(currentMeetingId)
+    LaunchedEffect(currentRecordingId) {
+        if (currentRecordingId > 0L) {
+            val meeting = meetingDao.getMeetingById(currentRecordingId)
             meetingTitle = meeting?.title ?: ""
             meetingDate = meeting?.createdAt?.let {
-                android.text.format.DateFormat.format(
-                    "dd MMM yyyy hh:mm a",
-                    it
-                ) as String
+                android.text.format.DateFormat.format("dd MMM yyyy hh:mm a", it) as String
             } ?: ""
         }
     }
-    val isNewRecording = currentRecordingId == 0L
 
+    // Only block back while recording
+    BackHandler(enabled = isRecording) {
+        Toast.makeText(context, "Recording in progress — cannot go back!", Toast.LENGTH_SHORT)
+            .show()
+    }
 
+    // Then launch processing if needed
+    LaunchedEffect(transcriptEntity, summaryEntity, currentRecordingId) {
+        if (currentRecordingId > 0L && (transcriptEntity == null || summaryEntity == null)) {
+            val meeting = meetingDao.getMeetingById(currentRecordingId) ?: return@LaunchedEffect
+            notesViewModel.processRecording(
+                meetingId = currentRecordingId,
+                audioPath = meeting.audioPath
+            )
+        }
+    }
+
+// --- Tabs ---
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("Questions", "Notes", "Transcript")
+
 
     Scaffold(
         topBar = { RecordTopBar(timerText, navController) },
@@ -256,7 +271,7 @@ fun RecordScreen(
                                     meetingId = meetingId
                                 )
                                 // ✅ Update currentRecordingId so UI reacts
-                                notesViewModel.currentRecordingId = meetingId
+                                notesViewModel.updateCurrentRecordingId(meetingId)
                             }
                         }
                     }
@@ -303,7 +318,7 @@ fun RecordScreen(
             when {
                 currentMeetingId == 0L && viewState is NotesProcessViewModel.NotesState.ConvertingToText ->
                     Text(
-                        "⏳ Converting speech to text...",
+                        "⏳ Converting speech to text…\nPlease don’t press back",
                         fontSize = 14.sp,
                         color = MediumGray,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -311,7 +326,7 @@ fun RecordScreen(
 
                 currentMeetingId == 0L && viewState is NotesProcessViewModel.NotesState.GeneratingSummary ->
                     Text(
-                        "💡 Generating summary...",
+                        "💡 Generating summary…\nPlease don’t press back",
                         fontSize = 14.sp,
                         color = DeepBlue,
                         modifier = Modifier.padding(horizontal = 16.dp)

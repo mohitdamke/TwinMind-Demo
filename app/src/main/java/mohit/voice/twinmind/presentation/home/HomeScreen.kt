@@ -1,5 +1,10 @@
 package mohit.voice.twinmind.presentation.home
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,14 +39,20 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -60,6 +71,30 @@ fun HomeScreen(
     navController: NavController,
     notesViewModel: NotesProcessViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+
+    // --- Microphone permission ---
+    val recordPermission = Manifest.permission.RECORD_AUDIO
+    var isPermissionGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(
+                context,
+                recordPermission
+            ) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isPermissionGranted = granted
+        if (!granted) Toast.makeText(context, "Microphone permission denied", Toast.LENGTH_SHORT)
+            .show()
+    }
+
+    LaunchedEffect(Unit) {
+        if (!isPermissionGranted) permissionLauncher.launch(recordPermission)
+    }
     val meetings = notesViewModel.meetings.collectAsState().value
 
     LaunchedEffect(Unit) {
@@ -99,7 +134,13 @@ fun HomeScreen(
                     .padding(20.dp)
             ) {
                 Button(
-                    onClick = { navController.navigate(Routes.recordScreen(0L)) },
+                    onClick = {
+                        if (!isPermissionGranted) {
+                            permissionLauncher.launch(recordPermission)
+                        } else {
+                            navController.navigate(Routes.recordScreen(0L))
+                        }
+                    },
                     colors = ButtonColors(
                         containerColor = DeepBlue,
                         contentColor = Color.White,
