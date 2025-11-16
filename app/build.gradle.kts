@@ -1,4 +1,7 @@
+import com.android.build.api.dsl.Packaging
+
 val GEMINI_API_KEY: String by project
+val GOOGLE_CLOUD_API_KEY: String by project
 
 plugins {
     alias(libs.plugins.android.application)
@@ -22,6 +25,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "GEMINI_API_KEY", "\"${GEMINI_API_KEY}\"")
+        buildConfigField("String", "GOOGLE_CLOUD_API_KEY", "\"${GOOGLE_CLOUD_API_KEY}\"")
 
     }
 
@@ -46,7 +50,26 @@ android {
         buildConfig = true
 
     }
-}
+        packaging {
+            jniLibs {
+                pickFirsts += listOf("lib/**/libc++_shared.so")
+            }
+            resources {
+                excludes += listOf(
+                    "META-INF/DEPENDENCIES",
+                    "META-INF/LICENSE",
+                    "META-INF/LICENSE.txt",
+                    "META-INF/license.txt",
+                    "META-INF/NOTICE",
+                    "META-INF/NOTICE.txt",
+                    "META-INF/notice.txt",
+                    "META-INF/INDEX.LIST"
+                )
+            }
+        }
+
+
+    }
 
 dependencies {
 
@@ -76,6 +99,9 @@ dependencies {
     implementation("androidx.room:room-runtime:2.8.3")
     implementation("androidx.room:room-ktx:2.8.3")
     kapt("androidx.room:room-compiler:2.8.3")
+
+    // Audio to text
+    implementation("com.google.cloud:google-cloud-speech:4.75.0")
 
     // ▶ WorkManager
     implementation("androidx.work:work-runtime-ktx:2.11.0")

@@ -1,5 +1,6 @@
 package mohit.voice.twinmind.viewmodel.notes
 
+import android.util.Log
 import mohit.voice.twinmind.room.entity.TranscriptEntity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +11,6 @@ import kotlinx.coroutines.launch
 import mohit.voice.twinmind.room.dao.MeetingDao
 import mohit.voice.twinmind.room.dao.SummaryDao
 import mohit.voice.twinmind.room.dao.TranscriptDao
-import mohit.voice.twinmind.room.entity.MeetingEntity
 import mohit.voice.twinmind.room.entity.SummaryEntity
 import javax.inject.Inject
 
@@ -22,6 +22,10 @@ class NotesProcessViewModel @Inject constructor(
     private val speechToTextManager: SpeechToTextManager,
     private val geminiApi: GeminiApi
 ) : ViewModel() {
+
+    companion object {
+        private const val TAG = "NotesProcessViewModel"
+    }
 
     sealed class NotesState {
         object Idle : NotesState()
@@ -35,8 +39,6 @@ class NotesProcessViewModel @Inject constructor(
     private val _state = MutableStateFlow<NotesState>(NotesState.Idle)
     val state = _state.asStateFlow()
 
-    private var currentMeetingId: Long? = null
-
     /** STEP 1 — Save Recorded Audio to Room */
     fun saveRecording(
         meetingId: Long,
@@ -46,15 +48,13 @@ class NotesProcessViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Saving audio: $audioPath, duration: $duration, meetingId: $meetingId")
                 _state.value = NotesState.SavingAudio
-
-                // Optional: update MeetingEntity if needed
-                // val meeting = MeetingEntity(id = meetingId, title = title, audioPath = audioPath, duration = duration, createdAt = System.currentTimeMillis())
-                // meetingDao.updateMeeting(meeting) // only if you want to update
 
                 convertAudioToText(meetingId, audioPath)
 
             } catch (e: Exception) {
+                Log.e(TAG, "Error saving audio", e)
                 _state.value = NotesState.Error(e.message ?: "Error saving audio")
             }
         }
@@ -63,44 +63,52 @@ class NotesProcessViewModel @Inject constructor(
     private fun convertAudioToText(meetingId: Long, audioPath: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Converting audio to text for: $audioPath")
                 _state.value = NotesState.ConvertingToText
+
                 val text = speechToTextManager.convertAudioToText(audioPath)
+                Log.d(TAG, "Converted text: $text")
 
                 val transcript = TranscriptEntity(
-                    meetingId = meetingId,   // important
+                    meetingId = meetingId,
                     transcriptText = text,
                     createdAt = System.currentTimeMillis()
                 )
                 transcriptDao.insertTranscript(transcript)
+                Log.d(TAG, "Transcript saved in DB for meetingId: $meetingId")
 
                 generateSummary(meetingId, text)
             } catch (e: Exception) {
+                Log.e(TAG, "Error converting audio to text", e)
                 _state.value = NotesState.Error(e.message ?: "STT error")
             }
         }
     }
 
-
     /** STEP 3 — Send Transcript to Gemini API → Summary & Save */
     private fun generateSummary(meetingId: Long, transcriptText: String) {
         viewModelScope.launch {
             try {
+                Log.d(TAG, "Generating summary for meetingId: $meetingId")
                 _state.value = NotesState.GeneratingSummary
+
                 val summaryText = geminiApi.generateSummary(transcriptText)
+                Log.d(TAG, "Summary received: $summaryText")
 
                 val summary = SummaryEntity(
-                    meetingId = meetingId,   // important
+                    meetingId = meetingId,
                     summaryText = summaryText,
                     createdAt = System.currentTimeMillis()
                 )
                 summaryDao.insertSummary(summary)
+                Log.d(TAG, "Summary saved in DB for meetingId: $meetingId")
 
                 _state.value = NotesState.Completed
+                Log.d(TAG, "Processing completed for meetingId: $meetingId")
             } catch (e: Exception) {
+                Log.e(TAG, "Error generating summary", e)
                 _state.value = NotesState.Error(e.message ?: "Summary error")
             }
         }
     }
-
-
 }
