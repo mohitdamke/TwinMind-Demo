@@ -3,6 +3,7 @@ package mohit.voice.twinmind.presentation.detail
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Divider
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -20,7 +21,9 @@ import mohit.voice.twinmind.ui.theme.SoftGray
 @Composable
 fun TranscriptScreen(
     modifier: Modifier = Modifier,
-    navController: NavController
+    navController: NavController,
+    text: String,
+    isProcessing: Boolean,
 ) {
     Column(
         modifier
@@ -28,7 +31,16 @@ fun TranscriptScreen(
             .padding(16.dp),
         horizontalAlignment = Alignment.Start
     ) {
-
+        if (isProcessing) {
+            Text(
+                text = "Transcribing audio...",
+                fontSize = 18.sp,
+                color = DeepBlue
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            return
+        }
         // 🕒 Time text
         Text(
             text = "14:25",
@@ -41,7 +53,7 @@ fun TranscriptScreen(
 
         // 📌 Transcript text
         Text(
-            text = "Something",
+            text = text.ifEmpty { "Transcript not available" },
             fontSize = 18.sp,
             fontWeight = FontWeight.Medium,
             color = MediumGray
@@ -55,11 +67,4 @@ fun TranscriptScreen(
             color = SoftGray
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun TranscriptScreenPreview() {
-    val navController = rememberNavController()
-    TranscriptScreen(navController = navController)
 }

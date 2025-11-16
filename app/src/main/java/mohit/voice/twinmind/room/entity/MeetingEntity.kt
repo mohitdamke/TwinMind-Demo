@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "meetings")
 data class MeetingEntity(
-    @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
     val title: String? = null,                // user can rename later
     val audioPath: String,                   // audio file location
     val duration: String,                    // "02:14" readable format

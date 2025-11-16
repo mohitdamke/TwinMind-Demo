@@ -20,5 +20,6 @@ interface MeetingDao {
     suspend fun getAllMeetings(): List<MeetingEntity>
 
     @Query("SELECT * FROM meetings WHERE id = :id")
-    suspend fun getMeetingById(id: Int): MeetingEntity
+    suspend fun getMeetingById(id: Long): MeetingEntity?
+
 }

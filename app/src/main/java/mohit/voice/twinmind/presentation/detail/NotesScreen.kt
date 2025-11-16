@@ -23,7 +23,9 @@ import androidx.navigation.compose.rememberNavController
 @Composable
 fun NotesScreen(
     modifier: Modifier = Modifier,
-    navController: NavController
+    navController: NavController,
+    text: String,
+    isProcessing: Boolean,
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
@@ -37,6 +39,17 @@ fun NotesScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
+        // If transcription is not completed show loading UI
+        if (isProcessing) {
+            Text(
+                text = "Processing summary...",
+                fontSize = 18.sp,
+                color = DeepBlue
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            return
+        }
 
         // 🔹 Summary title + Actions buttons (Copy + Share)
         Row(
@@ -89,7 +102,7 @@ fun NotesScreen(
     Column(modifier = Modifier.padding(4.dp)) {
         // 🔹 Summary body
         Text(
-            text = summaryText,
+            text = text,
             color = MediumGray,
             fontSize = 18.sp,
             fontWeight = FontWeight.SemiBold,
@@ -101,11 +114,4 @@ fun NotesScreen(
         // 🔹 Snackbar feedback
         SnackbarHost(hostState = snackbarHostState)
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun NotesScreenPreview() {
-    val navController = rememberNavController()
-    NotesScreen(navController = navController)
 }
