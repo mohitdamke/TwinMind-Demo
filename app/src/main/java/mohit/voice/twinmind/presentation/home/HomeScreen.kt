@@ -96,10 +96,10 @@ fun HomeScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(20.dp)
             ) {
                 Button(
-                    onClick = { navController.navigate(Routes.recordScreen(1L)) },
+                    onClick = { navController.navigate(Routes.recordScreen(0L)) },
                     colors = ButtonColors(
                         containerColor = DeepBlue,
                         contentColor = Color.White,
@@ -132,6 +132,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(paddingValues)
+                .padding(4.dp)
         ) {
 
             if (meetings.isEmpty()) {

@@ -5,6 +5,7 @@ import android.R.id.tabs
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -84,8 +85,6 @@ fun RecordScreen(
     val scope = rememberCoroutineScope()
     val context = navController.context
 
-    val currentRecordingId by notesViewModel::currentRecordingId
-
     var isRecording by remember { mutableStateOf(false) }
     var timerText by remember { mutableStateOf("00:00") }
     var mediaRecorder: MediaRecorder? by remember { mutableStateOf(null) }
@@ -111,15 +110,22 @@ fun RecordScreen(
     LaunchedEffect(Unit) { if (!isPermissionGranted) permissionLauncher.launch(recordPermission) }
 
 // Reset for new recording
+    // Right after reading currentRecordingId
+    val currentRecordingId by notesViewModel::currentRecordingId
+    Log.d("RECORD_SCREEN", "Screen started. currentMeetingId=$currentMeetingId, currentRecordingId=$currentRecordingId")
+
+// Reset for new recording
     LaunchedEffect(currentMeetingId) {
         if (currentMeetingId == 0L) {
+            Log.d("RECORD_SCREEN", "New recording detected. Resetting currentRecordingId to 0L")
             notesViewModel.currentRecordingId = 0L
         } else {
-            // Load existing recording if needed
             val meeting = meetingDao.getMeetingById(currentMeetingId)
+            Log.d("RECORD_SCREEN", "Existing recording. Loaded meetingId=${meeting?.id}")
             notesViewModel.currentRecordingId = meeting?.id ?: 0L
         }
     }
+
 
 
     // Timer
